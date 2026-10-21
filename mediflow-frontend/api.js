@@ -2,7 +2,7 @@
 // Shared helper for talking to the MediFlow backend.
 // Handles the auth token and redirects to login if the session is missing/expired.
 
-const API_BASE = "http://localhost:4000/api";
+const API_BASE = "https://mediflow-1-6zql.onrender.com/api";
 
 function getToken() {
   return localStorage.getItem("mediflow_token");
@@ -34,7 +34,7 @@ async function apiFetch(path, options = {}) {
   const headers = Object.assign(
     { "Content-Type": "application/json" },
     options.headers || {},
-    token ? { Authorization: "Bearer " + token } : {}
+    token ? { Authorization: "Bearer " + token } : {},
   );
 
   const response = await fetch(API_BASE + path, { ...options, headers });
