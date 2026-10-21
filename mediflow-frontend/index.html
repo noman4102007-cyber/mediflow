@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MediFlow - Login</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        font-family: Arial, sans-serif;
+      }
+      body {
+        min-height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background: #f4f7fb;
+      }
+      .login-box {
+        width: 380px;
+        background: white;
+        padding: 40px;
+        border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+      }
+      .logo {
+        text-align: center;
+        font-size: 30px;
+        font-weight: bold;
+        color: #1769aa;
+        margin-bottom: 10px;
+      }
+      .subtitle {
+        text-align: center;
+        color: #777;
+        margin-bottom: 30px;
+      }
+      .hint {
+        text-align: center;
+        color: #999;
+        font-size: 13px;
+        margin-bottom: 20px;
+      }
+      label {
+        display: block;
+        margin-bottom: 7px;
+        font-weight: bold;
+      }
+      input {
+        width: 100%;
+        padding: 12px;
+        margin-bottom: 20px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+      }
+      button {
+        width: 100%;
+        padding: 13px;
+        border: none;
+        border-radius: 8px;
+        background: #1769aa;
+        color: white;
+        font-size: 16px;
+        cursor: pointer;
+      }
+      button:hover {
+        background: #12578e;
+      }
+      button:disabled {
+        background: #9db8ca;
+        cursor: not-allowed;
+      }
+      .error {
+        color: #e53935;
+        text-align: center;
+        margin-bottom: 15px;
+        font-size: 14px;
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="login-box">
+      <div class="logo">MediFlow</div>
+      <p class="subtitle">Medicine Inventory Intelligence</p>
+      <p class="hint">Demo: clinic-a / demo1234</p>
+
+      <div class="error" id="errorMsg"></div>
+
+      <label>Clinic ID</label>
+      <input type="text" id="clinicId" placeholder="Enter clinic ID" />
+      <label>Password</label>
+      <input type="password" id="password" placeholder="Enter password" />
+      <button id="loginBtn" onclick="login()">Login</button>
+    </div>
+
+    <script src="api.js"></script>
+    <script>
+      async function login() {
+        const clinicId = document.getElementById("clinicId").value.trim();
+        const password = document.getElementById("password").value;
+        const errorMsg = document.getElementById("errorMsg");
+        const loginBtn = document.getElementById("loginBtn");
+
+        errorMsg.style.display = "none";
+
+        if (clinicId === "" || password === "") {
+          errorMsg.textContent = "Please enter Clinic ID and password.";
+          errorMsg.style.display = "block";
+          return;
+        }
+
+        loginBtn.disabled = true;
+        loginBtn.textContent = "Logging in...";
+
+        try {
+          const data = await apiFetch("/auth/login", {
+            method: "POST",
+            body: JSON.stringify({ clinicId, password }),
+          });
+
+          saveSession(data.token, data.clinic);
+          window.location.href = "dashboard.html";
+        } catch (err) {
+          errorMsg.textContent = err.message || "Login failed. Please try again.";
+          errorMsg.style.display = "block";
+          loginBtn.disabled = false;
+          loginBtn.textContent = "Login";
+        }
+      }
+
+      // Allow Enter key to submit
+      document.getElementById("password").addEventListener("keydown", function (e) {
+        if (e.key === "Enter") login();
+      });
+    </script>
+  </body>
+</html>

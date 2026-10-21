@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MediFlow - Manage Stock</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        font-family: Arial, sans-serif;
+      }
+      body { background: #f4f7fb; }
+      header {
+        background: white;
+        padding: 20px 40px;
+        display: flex;
+        justify-content: space-between;
+        border-bottom: 1px solid #ddd;
+      }
+      .logo { font-size: 25px; font-weight: bold; color: #1769aa; }
+      .container { padding: 35px; max-width: 1000px; }
+      h1 { margin-bottom: 8px; }
+      .subtitle { color: #777; margin-bottom: 25px; }
+
+      .panel {
+        background: white;
+        border-radius: 12px;
+        padding: 25px;
+        margin-bottom: 25px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+      }
+      .panel h2 { font-size: 18px; margin-bottom: 15px; }
+
+      .form-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+      .form-row > div { flex: 1; min-width: 140px; }
+      label { display: block; font-size: 13px; color: #666; margin-bottom: 5px; }
+      input, select {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 7px;
+        font-size: 14px;
+      }
+      button {
+        padding: 11px 18px;
+        border: none;
+        border-radius: 7px;
+        background: #1769aa;
+        color: white;
+        cursor: pointer;
+        font-size: 14px;
+      }
+      button:hover { background: #12578e; }
+      button:disabled { background: #9db8ca; cursor: not-allowed; }
+      .secondary { background: #eef2f7; color: #333; }
+      .secondary:hover { background: #dfe6ee; }
+
+      table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+      th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; font-size: 14px; }
+      th { color: #777; font-weight: 600; }
+      .expiring { color: #e53935; font-weight: bold; }
+      .msg { font-size: 13px; margin-top: 8px; }
+      .msg.success { color: #2e7d32; }
+      .msg.error { color: #e53935; }
+
+      .medicine-select-row { display: flex; gap: 12px; align-items: end; margin-bottom: 15px; }
+      .medicine-select-row select { flex: 1; }
+
+      .back { margin-top: 10px; background: #eef2f7; color: #333; }
+      .back:hover { background: #dfe6ee; }
+    </style>
+  </head>
+
+  <body>
+    <header>
+      <div class="logo">MediFlow</div>
+      <div id="clinicName">Loading...</div>
+    </header>
+
+    <div class="container">
+      <h1>Manage Stock</h1>
+      <p class="subtitle">Add new medicines, restock with expiry dates, and log dispenses.</p>
+
+      <!-- Add new medicine -->
+      <div class="panel">
+        <h2>Add a New Medicine</h2>
+        <div class="form-row">
+          <div>
+            <label>Medicine Name</label>
+            <input type="text" id="newName" placeholder="e.g. Metformin" />
+          </div>
+          <div>
+            <label>Unit</label>
+            <input type="text" id="newUnit" placeholder="units" value="units" />
+          </div>
+          <div>
+            <label>Starting Quantity</label>
+            <input type="number" id="newQty" placeholder="0" />
+          </div>
+          <div>
+            <label>Expiry Date</label>
+            <input type="date" id="newExpiry" />
+          </div>
+          <div>
+            <label>Est. Daily Usage</label>
+            <input type="number" id="newUsage" placeholder="e.g. 5" />
+          </div>
+        </div>
+        <button onclick="addMedicine()">Add Medicine</button>
+        <div class="msg" id="addMsg"></div>
+      </div>
+
+      <!-- Select existing medicine to restock or log usage -->
+      <div class="panel">
+        <h2>Restock or Log Dispense</h2>
+        <div class="medicine-select-row">
+          <div style="flex:1">
+            <label>Select Medicine</label>
+            <select id="medicineSelect"><option value="">Select a medicine</option></select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div>
+            <label>Restock Quantity</label>
+            <input type="number" id="restockQty" placeholder="e.g. 50" />
+          </div>
+          <div>
+            <label>Batch Expiry Date</label>
+            <input type="date" id="restockExpiry" />
+          </div>
+          <div style="display:flex; align-items:end;">
+            <button onclick="addBatch()">Add Batch (Restock)</button>
+          </div>
+        </div>
+        <div class="msg" id="batchMsg"></div>
+
+        <div class="form-row" style="margin-top: 15px">
+          <div>
+            <label>Dispense Quantity</label>
+            <input type="number" id="dispenseQty" placeholder="e.g. 3" />
+          </div>
+          <div>
+            <label>Note (optional)</label>
+            <input type="text" id="dispenseNote" placeholder="e.g. patient visit" />
+          </div>
+          <div style="display:flex; align-items:end;">
+            <button class="secondary" onclick="logDispense()">Log Dispense</button>
+          </div>
+        </div>
+        <div class="msg" id="dispenseMsg"></div>
+      </div>
+
+      <!-- Batches for selected medicine -->
+      <div class="panel" id="batchesPanel" style="display: none">
+        <h2>Batches on Hand</h2>
+        <table>
+          <thead><tr><th>Quantity</th><th>Expiry Date</th><th>Received</th></tr></thead>
+          <tbody id="batchesTable"></tbody>
+        </table>
+      </div>
+
+      <button class="back" onclick="location.href = 'dashboard.html'">← Back to Dashboard</button>
+    </div>
+
+    <script src="api.js"></script>
+    <script>
+      requireSession();
+      const clinic = getClinic();
+      if (clinic) document.getElementById("clinicName").textContent = clinic.name;
+
+      const medicineSelect = document.getElementById("medicineSelect");
+      let medicineList = [];
+
+      async function loadMedicines() {
+        try {
+          const data = await apiFetch("/medicines");
+          medicineList = data.medicines;
+          medicineSelect.innerHTML = '<option value="">Select a medicine</option>';
+          medicineList.forEach(function (m) {
+            const option = document.createElement("option");
+            option.value = m.id;
+            option.textContent = m.name + " (" + m.stock + " " + m.unit + " on hand)";
+            medicineSelect.appendChild(option);
+          });
+        } catch (err) {
+          alert("Could not load medicines: " + err.message);
+        }
+      }
+
+      function showMsg(elId, text, type) {
+        const el = document.getElementById(elId);
+        el.textContent = text;
+        el.className = "msg " + type;
+      }
+
+      async function addMedicine() {
+        const name = document.getElementById("newName").value.trim();
+        const unit = document.getElementById("newUnit").value.trim() || "units";
+        const initialQuantity = parseFloat(document.getElementById("newQty").value) || 0;
+        const expiryDate = document.getElementById("newExpiry").value || null;
+        const manualDailyUsage = parseFloat(document.getElementById("newUsage").value) || 0;
+
+        if (!name) { showMsg("addMsg", "Enter a medicine name.", "error"); return; }
+
+        try {
+          await apiFetch("/medicines", {
+            method: "POST",
+            body: JSON.stringify({ name, unit, initialQuantity, expiryDate, manualDailyUsage }),
+          });
+          showMsg("addMsg", "✓ " + name + " added.", "success");
+          document.getElementById("newName").value = "";
+          document.getElementById("newQty").value = "";
+          document.getElementById("newExpiry").value = "";
+          document.getElementById("newUsage").value = "";
+          loadMedicines();
+        } catch (err) {
+          showMsg("addMsg", err.message, "error");
+        }
+      }
+
+      async function addBatch() {
+        const medicineId = medicineSelect.value;
+        const quantity = parseFloat(document.getElementById("restockQty").value);
+        const expiryDate = document.getElementById("restockExpiry").value || null;
+
+        if (!medicineId) { showMsg("batchMsg", "Select a medicine first.", "error"); return; }
+        if (!quantity || quantity <= 0) { showMsg("batchMsg", "Enter a valid quantity.", "error"); return; }
+
+        try {
+          await apiFetch("/medicines/" + medicineId + "/batches", {
+            method: "POST",
+            body: JSON.stringify({ quantity, expiryDate }),
+          });
+          showMsg("batchMsg", "✓ Batch added.", "success");
+          document.getElementById("restockQty").value = "";
+          document.getElementById("restockExpiry").value = "";
+          await loadMedicines();
+          medicineSelect.value = medicineId;
+          loadBatches();
+        } catch (err) {
+          showMsg("batchMsg", err.message, "error");
+        }
+      }
+
+      async function logDispense() {
+        const medicineId = medicineSelect.value;
+        const quantity = parseFloat(document.getElementById("dispenseQty").value);
+        const note = document.getElementById("dispenseNote").value.trim();
+
+        if (!medicineId) { showMsg("dispenseMsg", "Select a medicine first.", "error"); return; }
+        if (!quantity || quantity <= 0) { showMsg("dispenseMsg", "Enter a valid quantity.", "error"); return; }
+
+        try {
+          await apiFetch("/medicines/" + medicineId + "/consumption", {
+            method: "POST",
+            body: JSON.stringify({ quantity, note }),
+          });
+          showMsg("dispenseMsg", "✓ Logged.", "success");
+          document.getElementById("dispenseQty").value = "";
+          document.getElementById("dispenseNote").value = "";
+          await loadMedicines();
+          medicineSelect.value = medicineId;
+          loadBatches();
+        } catch (err) {
+          showMsg("dispenseMsg", err.message, "error");
+        }
+      }
+
+      async function loadBatches() {
+        const medicineId = medicineSelect.value;
+        const panel = document.getElementById("batchesPanel");
+        const table = document.getElementById("batchesTable");
+
+        if (!medicineId) { panel.style.display = "none"; return; }
+
+        try {
+          const data = await apiFetch("/medicines/" + medicineId + "/batches");
+          table.innerHTML = "";
+          const today = new Date();
+
+          data.batches.forEach(function (b) {
+            const row = document.createElement("tr");
+            let expiryClass = "";
+            if (b.expiry_date) {
+              const days = Math.round((new Date(b.expiry_date) - today) / 86400000);
+              if (days <= 30) expiryClass = "expiring";
+            }
+            row.innerHTML = `
+              <td>${b.quantity}</td>
+              <td class="${expiryClass}">${b.expiry_date || "No expiry set"}</td>
+              <td>${b.received_at}</td>
+            `;
+            table.appendChild(row);
+          });
+
+          panel.style.display = "block";
+        } catch (err) {
+          alert("Could not load batches: " + err.message);
+        }
+      }
+
+      medicineSelect.addEventListener("change", loadBatches);
+
+      loadMedicines();
+    </script>
+  </body>
+</html>

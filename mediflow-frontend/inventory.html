@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MediFlow - Inventory</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        font-family: Arial, sans-serif;
+      }
+      body { background: #f4f7fb; }
+      header {
+        background: white;
+        padding: 20px 40px;
+        display: flex;
+        justify-content: space-between;
+        border-bottom: 1px solid #ddd;
+      }
+      .logo { font-size: 25px; font-weight: bold; color: #1769aa; }
+      .container { padding: 35px; }
+      h1 { margin-bottom: 25px; }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        background: white;
+        border-radius: 12px;
+        overflow: hidden;
+      }
+      th, td {
+        padding: 18px;
+        text-align: left;
+        border-bottom: 1px solid #eee;
+      }
+      th { background: #1769aa; color: white; }
+      .high { color: #e53935; font-weight: bold; }
+      .medium { color: #f9a825; font-weight: bold; }
+      .low { color: #2e7d32; font-weight: bold; }
+      .back {
+        margin-top: 25px;
+        padding: 12px 20px;
+        border: none;
+        background: #1769aa;
+        color: white;
+        border-radius: 7px;
+        cursor: pointer;
+      }
+      .loading { color: #999; padding: 20px 0; }
+    </style>
+  </head>
+
+  <body>
+    <header>
+      <div class="logo">MediFlow</div>
+      <div id="clinicName">Loading...</div>
+    </header>
+
+    <div class="container">
+      <h1>Medicine Inventory</h1>
+
+      <div id="loadingMsg" class="loading">Loading inventory...</div>
+
+      <table id="inventoryTableWrapper" style="display: none">
+        <thead>
+          <tr>
+            <th>Medicine</th>
+            <th>Current Stock</th>
+            <th>Daily Usage</th>
+            <th>Estimated Days</th>
+            <th>Status</th>
+            <th>Nearest Expiry</th>
+          </tr>
+        </thead>
+        <tbody id="inventoryTable"></tbody>
+      </table>
+
+      <button class="back" onclick="location.href = 'stock.html'" style="margin-right: 10px;">
+        Manage Stock
+      </button>
+      <button class="back" onclick="location.href = 'dashboard.html'">
+        ← Back to Dashboard
+      </button>
+    </div>
+
+    <script src="api.js"></script>
+    <script>
+      requireSession();
+
+      // Backend statuses are CRITICAL/MEDIUM/STABLE — map to the existing CSS classes
+      const STATUS_CLASS = { CRITICAL: "high", MEDIUM: "medium", STABLE: "low" };
+      const STATUS_LABEL = { CRITICAL: "HIGH RISK", MEDIUM: "MEDIUM", STABLE: "STABLE" };
+
+      async function loadInventory() {
+        const clinic = getClinic();
+        if (clinic) document.getElementById("clinicName").textContent = clinic.name;
+
+        try {
+          const data = await apiFetch("/medicines");
+          const table = document.getElementById("inventoryTable");
+
+          data.medicines.forEach(function (medicine) {
+            const row = document.createElement("tr");
+            const statusClass = STATUS_CLASS[medicine.status] || "low";
+            const statusLabel = STATUS_LABEL[medicine.status] || medicine.status;
+            const daysText =
+              medicine.daysRemaining === null ? "N/A" : medicine.daysRemaining.toFixed(1) + " days";
+            const expiryText = medicine.nearestExpiry
+              ? medicine.nearestExpiry + (medicine.isExpiringSoon ? " ⚠" : "")
+              : "—";
+            const expiryClass = medicine.isExpiringSoon ? "high" : "";
+
+            row.innerHTML = `
+              <td>${medicine.name}</td>
+              <td>${medicine.stock}</td>
+              <td>${medicine.dailyUsage}</td>
+              <td>${daysText}</td>
+              <td class="${statusClass}">${statusLabel}</td>
+              <td class="${expiryClass}">${expiryText}</td>
+            `;
+            table.appendChild(row);
+          });
+
+          document.getElementById("loadingMsg").style.display = "none";
+          document.getElementById("inventoryTableWrapper").style.display = "table";
+        } catch (err) {
+          document.getElementById("loadingMsg").textContent =
+            "Could not load inventory: " + err.message;
+        }
+      }
+
+      loadInventory();
+    </script>
+  </body>
+</html>

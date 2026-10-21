@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MediFlow Dashboard</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        font-family: Arial, sans-serif;
+      }
+      body { background: #f4f7fb; }
+      header {
+        background: white;
+        padding: 20px 40px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid #ddd;
+      }
+      .logo { font-size: 25px; font-weight: bold; color: #1769aa; }
+      .header-right { display: flex; align-items: center; gap: 15px; }
+      .clinic { color: #555; }
+      .logout {
+        background: none;
+        border: 1px solid #ddd;
+        padding: 8px 14px;
+        border-radius: 7px;
+        cursor: pointer;
+        color: #555;
+      }
+      .container { padding: 35px; }
+      h1 { margin-bottom: 10px; }
+      .subtitle { color: #777; margin-bottom: 30px; }
+      .cards {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 20px;
+      }
+      .card {
+        background: white;
+        padding: 25px;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+      }
+      .card h3 { color: #777; margin-bottom: 10px; }
+      .number { font-size: 35px; font-weight: bold; }
+      .red { color: #e53935; }
+      .yellow { color: #f9a825; }
+      .green { color: #2e7d32; }
+      .actions { margin-top: 35px; display: flex; gap: 15px; }
+      .actions button {
+        padding: 14px 20px;
+        border: none;
+        border-radius: 8px;
+        background: #1769aa;
+        color: white;
+        cursor: pointer;
+      }
+      .loading { color: #999; padding: 20px 0; }
+    </style>
+  </head>
+
+  <body>
+    <header>
+      <div class="logo">MediFlow</div>
+      <div class="header-right">
+        <div class="clinic" id="clinicName">Loading...</div>
+        <button class="logout" onclick="logout()">Logout</button>
+      </div>
+    </header>
+
+    <div class="container">
+      <h1>Inventory Dashboard</h1>
+      <p class="subtitle">Monitor medicine availability and stockout risks.</p>
+
+      <div id="loadingMsg" class="loading">Loading dashboard...</div>
+
+      <div class="cards" id="cardsSection" style="display: none">
+        <div class="card">
+          <h3>Critical Stock Risks</h3>
+          <div class="number red" id="criticalCount">0</div>
+        </div>
+        <div class="card">
+          <h3>Medium Risks</h3>
+          <div class="number yellow" id="mediumCount">0</div>
+        </div>
+        <div class="card">
+          <h3>Stable Medicines</h3>
+          <div class="number green" id="stableCount">0</div>
+        </div>
+        <div class="card">
+          <h3>Expiring Soon (≤30 days)</h3>
+          <div class="number yellow" id="expiringCount">0</div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button onclick="location.href = 'inventory.html'">View Inventory</button>
+        <button onclick="location.href = 'risk.html'">View Risks</button>
+        <button onclick="location.href = 'surplus.html'">Find Surplus</button>
+        <button onclick="location.href = 'stock.html'">Manage Stock</button>
+      </div>
+    </div>
+
+    <script src="api.js"></script>
+    <script>
+      requireSession();
+
+      function logout() {
+        clearSession();
+        window.location.href = "index.html";
+      }
+
+      async function loadDashboard() {
+        try {
+          const data = await apiFetch("/dashboard/summary");
+
+          document.getElementById("clinicName").textContent = data.clinicName;
+          document.getElementById("criticalCount").textContent = data.critical;
+          document.getElementById("mediumCount").textContent = data.medium;
+          document.getElementById("stableCount").textContent = data.stable;
+          document.getElementById("expiringCount").textContent = data.expiringSoon;
+
+          document.getElementById("loadingMsg").style.display = "none";
+          document.getElementById("cardsSection").style.display = "grid";
+        } catch (err) {
+          document.getElementById("loadingMsg").textContent =
+            "Could not load dashboard: " + err.message;
+        }
+      }
+
+      loadDashboard();
+    </script>
+  </body>
+</html>

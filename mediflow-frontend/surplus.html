@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MediFlow - Surplus Finder</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        font-family: Arial, sans-serif;
+      }
+      body { background: #f4f7fb; }
+      header {
+        background: white;
+        padding: 20px 40px;
+        border-bottom: 1px solid #ddd;
+      }
+      .logo { color: #1769aa; font-size: 25px; font-weight: bold; }
+      .container { padding: 40px; }
+      .search-box {
+        background: white;
+        padding: 25px;
+        border-radius: 12px;
+        margin: 25px 0;
+      }
+      select {
+        margin-top: 10px;
+        width: 320px;
+        padding: 12px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        font-size: 15px;
+      }
+      .results { display: grid; gap: 18px; }
+      .clinic-card {
+        background: white;
+        padding: 25px;
+        border-radius: 12px;
+        border-left: 5px solid #2e7d32;
+      }
+      .clinic-name { font-size: 22px; font-weight: bold; margin-bottom: 10px; }
+      .medicine { color: #555; margin: 7px 0; }
+      .distance { color: #1769aa; font-weight: bold; margin-top: 12px; }
+      .stock { color: #2e7d32; font-weight: bold; }
+      .no-result { background: white; padding: 25px; border-radius: 12px; color: #777; }
+      .request-row { margin-top: 15px; display: flex; gap: 10px; align-items: center; }
+      .request-row input {
+        width: 90px;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 7px;
+      }
+      .request-row button {
+        padding: 10px 16px;
+        border: none;
+        border-radius: 7px;
+        background: #1769aa;
+        color: white;
+        cursor: pointer;
+      }
+      .request-row button:disabled { background: #9db8ca; cursor: not-allowed; }
+      .request-status { color: #2e7d32; font-weight: bold; margin-top: 10px; }
+      .back {
+        margin-top: 25px;
+        padding: 12px 20px;
+        border: none;
+        border-radius: 7px;
+        background: #1769aa;
+        color: white;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+
+  <body>
+    <header>
+      <div class="logo">MediFlow</div>
+    </header>
+
+    <div class="container">
+      <h1>Surplus Medicine Finder</h1>
+      <p style="margin-top: 10px; color: #777">
+        Find nearby clinics with genuine surplus stock (their own supply stays stable).
+      </p>
+
+      <div class="search-box">
+        <label>Select required medicine</label>
+        <br />
+        <select id="medicineSelect">
+          <option value="">Select medicine</option>
+        </select>
+      </div>
+
+      <div class="results" id="results"></div>
+
+      <button class="back" onclick="location.href = 'dashboard.html'">← Back to Dashboard</button>
+    </div>
+
+    <script src="api.js"></script>
+    <script>
+      requireSession();
+
+      const medicineSelect = document.getElementById("medicineSelect");
+      const results = document.getElementById("results");
+
+      async function loadMedicineOptions() {
+        try {
+          const data = await apiFetch("/surplus/medicines");
+          data.medicines.forEach(function (name) {
+            const option = document.createElement("option");
+            option.value = name;
+            option.textContent = name;
+            medicineSelect.appendChild(option);
+          });
+        } catch (err) {
+          alert("Could not load medicine list: " + err.message);
+        }
+      }
+
+      async function requestTransfer(providerClinicId, medicineName, quantity, button, statusEl) {
+        if (!quantity || quantity <= 0) {
+          alert("Enter a valid quantity.");
+          return;
+        }
+        button.disabled = true;
+        button.textContent = "Requesting...";
+
+        try {
+          await apiFetch("/transfers", {
+            method: "POST",
+            body: JSON.stringify({ providerClinicId, medicineName, quantity }),
+          });
+          statusEl.textContent = "✓ Transfer request sent";
+          button.textContent = "Requested";
+        } catch (err) {
+          alert("Could not send request: " + err.message);
+          button.disabled = false;
+          button.textContent = "Request Transfer";
+        }
+      }
+
+      medicineSelect.addEventListener("change", async function () {
+        const selectedMedicine = medicineSelect.value;
+        results.innerHTML = "";
+
+        if (selectedMedicine === "") return;
+
+        try {
+          const data = await apiFetch("/surplus/" + encodeURIComponent(selectedMedicine));
+
+          if (data.results.length === 0) {
+            results.innerHTML = `<div class="no-result">No surplus stock found for ${selectedMedicine}.</div>`;
+            return;
+          }
+
+          data.results.forEach(function (clinic) {
+            const card = document.createElement("div");
+            card.className = "clinic-card";
+
+            card.innerHTML = `
+              <div class="clinic-name">${clinic.clinicName}</div>
+              <div class="medicine">Medicine: <strong>${selectedMedicine}</strong></div>
+              <div class="medicine">Available surplus: <span class="stock">${clinic.stock} ${clinic.unit}</span></div>
+              <div class="distance">📍 ${clinic.distanceKm} km away</div>
+              <div class="request-row">
+                <input type="number" min="1" max="${clinic.stock}" placeholder="Qty" class="qtyInput" />
+                <button class="requestBtn">Request Transfer</button>
+              </div>
+              <div class="request-status"></div>
+            `;
+
+            const qtyInput = card.querySelector(".qtyInput");
+            const requestBtn = card.querySelector(".requestBtn");
+            const statusEl = card.querySelector(".request-status");
+
+            requestBtn.addEventListener("click", function () {
+              const quantity = parseFloat(qtyInput.value);
+              requestTransfer(clinic.clinicId, selectedMedicine, quantity, requestBtn, statusEl);
+            });
+
+            results.appendChild(card);
+          });
+        } catch (err) {
+          results.innerHTML = `<div class="no-result">Could not load surplus data: ${err.message}</div>`;
+        }
+      });
+
+      loadMedicineOptions();
+    </script>
+  </body>
+</html>

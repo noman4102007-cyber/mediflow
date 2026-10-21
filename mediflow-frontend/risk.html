@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MediFlow - Risk Analysis</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        font-family: Arial, sans-serif;
+      }
+      body { background: #f4f7fb; }
+      header {
+        background: white;
+        padding: 20px 40px;
+        border-bottom: 1px solid #ddd;
+      }
+      .logo { color: #1769aa; font-size: 25px; font-weight: bold; }
+      .container { padding: 40px; }
+      .selector-box {
+        background: white;
+        padding: 25px;
+        border-radius: 12px;
+        margin-bottom: 25px;
+      }
+      select {
+        margin-top: 10px;
+        width: 300px;
+        padding: 12px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        font-size: 15px;
+      }
+      .risk-box {
+        max-width: 700px;
+        background: white;
+        padding: 30px;
+        border-radius: 15px;
+        border-left: 7px solid #e53935;
+      }
+      .medicine { font-size: 30px; font-weight: bold; margin-bottom: 20px; }
+      .info { margin: 12px 0; color: #555; }
+      .danger { color: #e53935; font-weight: bold; font-size: 20px; margin: 20px 0; }
+      .medium { color: #f9a825; font-weight: bold; font-size: 20px; margin: 20px 0; }
+      .stable { color: #2e7d32; font-weight: bold; font-size: 20px; margin: 20px 0; }
+      .recommendation {
+        margin-top: 25px;
+        background: #f7f9fc;
+        padding: 20px;
+        border-radius: 10px;
+      }
+      button {
+        margin-top: 25px;
+        padding: 12px 20px;
+        border: none;
+        border-radius: 7px;
+        background: #1769aa;
+        color: white;
+        cursor: pointer;
+      }
+      .error { color: #e53935; padding: 10px 0; }
+    </style>
+  </head>
+
+  <body>
+    <header>
+      <div class="logo">MediFlow</div>
+    </header>
+
+    <div class="container">
+      <h1>Medicine Risk Analysis</h1>
+
+      <div class="selector-box">
+        <label>Select Medicine</label>
+        <br />
+        <select id="medicineSelect">
+          <option value="">Select a medicine</option>
+        </select>
+      </div>
+
+      <div class="risk-box" id="riskBox" style="display: none">
+        <div class="medicine" id="medicineName"></div>
+        <div class="info">Current Stock: <strong id="stock"></strong></div>
+        <div class="info">Average Daily Usage: <strong id="dailyUsage"></strong></div>
+        <div class="info">Estimated Coverage: <strong id="daysRemaining"></strong></div>
+        <div id="riskStatus"></div>
+        <div class="recommendation">
+          <strong>Recommended Action</strong>
+          <p id="recommendationText" style="margin-top: 10px"></p>
+        </div>
+        <button onclick="location.href = 'surplus.html'">Find Nearby Surplus</button>
+      </div>
+    </div>
+
+    <script src="api.js"></script>
+    <script>
+      requireSession();
+
+      const STATUS_CLASS = { CRITICAL: "danger", MEDIUM: "medium", STABLE: "stable" };
+      const STATUS_LABEL = {
+        CRITICAL: "⚠ HIGH STOCKOUT RISK",
+        MEDIUM: "⚠ MEDIUM STOCKOUT RISK",
+        STABLE: "✓ STOCK LEVEL STABLE",
+      };
+
+      const medicineSelect = document.getElementById("medicineSelect");
+
+      // Load the medicine list for this clinic (reuses /medicines, just for names)
+      async function loadMedicineOptions() {
+        try {
+          const data = await apiFetch("/medicines");
+          data.medicines.forEach(function (medicine) {
+            const option = document.createElement("option");
+            option.value = medicine.name;
+            option.textContent = medicine.name;
+            medicineSelect.appendChild(option);
+          });
+        } catch (err) {
+          alert("Could not load medicines: " + err.message);
+        }
+      }
+
+      medicineSelect.addEventListener("change", async function () {
+        const selectedName = medicineSelect.value;
+        const riskBox = document.getElementById("riskBox");
+
+        if (selectedName === "") {
+          riskBox.style.display = "none";
+          return;
+        }
+
+        try {
+          const medicine = await apiFetch("/medicines/" + encodeURIComponent(selectedName) + "/risk");
+
+          document.getElementById("medicineName").textContent = medicine.name;
+          document.getElementById("stock").textContent = medicine.stock + " " + medicine.unit;
+          document.getElementById("dailyUsage").textContent = medicine.dailyUsage + " " + medicine.unit + "/day";
+          document.getElementById("daysRemaining").textContent =
+            (medicine.daysRemaining === null ? "N/A" : medicine.daysRemaining.toFixed(1)) + " days";
+
+          const riskStatus = document.getElementById("riskStatus");
+          riskStatus.textContent = STATUS_LABEL[medicine.status];
+          riskStatus.className = STATUS_CLASS[medicine.status];
+
+          document.getElementById("recommendationText").textContent = medicine.recommendation;
+
+          riskBox.style.display = "block";
+        } catch (err) {
+          alert("Could not load risk data: " + err.message);
+        }
+      });
+
+      loadMedicineOptions();
+    </script>
+  </body>
+</html>
